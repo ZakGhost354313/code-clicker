@@ -20,16 +20,26 @@
             </div>
             <div class="row">
                 <div class="col-sm-8">
-                    <textarea id="code" data-bind="value: code, codemirror: {mode:'javascript',lineNumbers:true}"></textarea>
-                    <button class="btn btn-primary btn-block" type="button" id="run" data-bind="click: run">Run</button>
+                    <ul class="nav nav-pills nav-justified" data-bind="visible: processors().length>1, foreach: processors">
+                        <li data-bind="css: {active: $data==$root.show_processor()}">
+                            <a href="#" data-bind="text: $index, click: $root.show_processor"></a>
+                        </li>
+                    </ul>
+                    <div class="tab-content" data-bind="foreach: processors">
+                        <div class="tab-pane" data-bind="css: {active: $data==$root.show_processor()}">
+                            <textarea id="code" data-bind="codemirror: code"></textarea>
+                            <button class="btn btn-primary btn-block" type="button" id="run" data-bind="click: run, disable: running">Run</button>
 
-                    <hr/>
+                            <hr/>
 
-                    <div id="output">
-                        <ul class="list-unstyled" data-bind="foreach: log_items">
-                            <li class="line" data-bind="html: $data"></li>
-                        </ul>
+                            <div id="output">
+                                <ul class="list-unstyled" data-bind="foreach: log_items">
+                                    <li class="line" data-bind="html: $data"></li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
                 <div class="col-sm-4">
                     <table class="table">
@@ -41,35 +51,64 @@
                             <th>Execution speed</th>
                             <td data-bind="text: num_steps"></td>
                         </tr>
+                        <tr>
+                            <th>Maximum number of lines</th>
+                            <td data-bind="text: max_lines"></td>
+                        </tr>
                     </table>
-
-                    <div id="challenges">
-                        <h3>Challenges</h3>
-                        <div class="list-group" data-bind="foreach: challenges">
-                            <div class="list-group-item">
-                                <h4 data-bind="text: name"></h4>
-                                <!-- ko if: unlocked -->
-                                <div data-bind="html: description"></div>
-                                <p><strong>Reward:</strong> <span data-bind="text: reward"></span></p>
-                                <p><strong>Examples</strong></p>
-                                <ul data-bind="foreach: examples">
-                                    <li><code data-bind="text: JSON.stringify(from,null,2)"></code> → <code data-bind="text: JSON.stringify(to,null,2)"></code></li>
-                                </ul>
-                                <!-- /ko -->
-                                <!-- ko if: !unlocked() -->
-                                <button class="btn btn-info" data-bind="click: $root.unlock_challenge, disable: $root.points()<price">Unlock for <span data-bind="text: price"></span> points</button>
-                                <!-- /ko -->
-                            </div>
-                        </div>
-                    </div>
 
                     <button class="btn btn-danger btn-block" data-bind="click: reset">Reset</button>
                 </div>
             </div>
+            <div class="row clearfix">
+                <div id="challenges" class="col-sm-6">
+                    <h3>Challenges</h3>
+                    <div class="list-group" data-bind="foreach: challenges">
+                        <div class="list-group-item">
+                            <h4 data-bind="text: name"></h4>
+                            <!-- ko if: unlocked -->
+                            <div class="help-block" data-bind="html: description"></div>
+                            <p><strong>Reward:</strong> <span data-bind="text: reward"></span></p>
+                            <p><strong>Examples</strong></p>
+                            <ul data-bind="foreach: examples">
+                                <li><code data-bind="text: JSON.stringify(from,null,2)"></code> → <code data-bind="text: JSON.stringify(to,null,2)"></code></li>
+                            </ul>
+                            <button class="btn btn-danger" data-bind="click: $root.sell_challenge">Sell for <span data-bind="text: price"></span> points</button>
+                            <!-- /ko -->
+                            <!-- ko if: !unlocked() -->
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" data-bind="style: {width: progress()+'%'}"></div>
+                            </div>
+                            <button class="btn btn-info" data-bind="click: $root.unlock_challenge, disable: $root.points()<price">Unlock for <span data-bind="text: price"></span> points</button>
+                            <!-- /ko -->
+                        </div>
+                    </div>
+                </div>
+                <div id="perks" class="col-sm-6">
+                    <h3>Perks</h3>
+                    <div class="list-group" data-bind="foreach: perk_threads">
+                        <!-- ko foreach: $data -->
+                        <div class="list-group-item">
+                            <h4 data-bind="text: name"></h4>
+                            <div class="help-block" data-bind="html: description"></div>
+                            <!-- ko if: !unlocked() -->
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" data-bind="style: {width: progress()+'%'}"></div>
+                            </div>
+                            <button class="btn btn-info" data-bind="click: $root.unlock_perk, disable: $root.points()<price"><span data-bind="text: repeats ? 'Buy' : 'Unlock'"></span> for <span data-bind="text: price"></span> points</button>
+                            <!-- /ko -->
+                            <!-- ko if: num_bought()>0 -->
+                            <button class="btn btn-danger" data-bind="click: $root.sell_perk">Sell for <span data-bind="text: price"></span> points</button>
+                            <!-- /ko -->
+                        </div>
+                        <!-- /ko -->
+                    </div>
+                </div>
+            </div>
             <div class="row">
-                <div id="explanation">
+                <div id="explanation" class="col-sm-12">
                     <h3>How to play</h3>
-                    <p>Write code to complete challenges.</p>
+                    <p>Write JavaScript code to complete challenges.</p>
                     <p>Get data to start a challenge with <code>var data = challenge(challenge_name)</code></p>
                     <p>Submit your answer with <code>submit(challenge_name,answer)</code></p>
                 </div>
