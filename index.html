@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+	<head>
+        <title>Code Clicker</title>
+
+		<script src="acorn_interpreter.js"></script>
+		<script src="knockout-3.4.0.js"></script>
+
+        <script src="CodeMirror/lib/codemirror.js"></script>
+        <script src="CodeMirror/mode/javascript/javascript.js"></script>
+		<link rel="stylesheet" href="CodeMirror/lib/codemirror.css"></link>
+
+		<link rel="stylesheet" href="bootstrap/css/bootstrap.css"></link>
+		<link rel="stylesheet" href="style.css"></link>
+	</head>
+	<body>
+        <div class="container">
+            <div class="page-header">
+                <h1>Code Clicker</h1>
+            </div>
+            <div class="row">
+                <div class="col-sm-8">
+                    <textarea id="code" data-bind="value: code, codemirror: {mode:'javascript',lineNumbers:true}"></textarea>
+                    <button class="btn btn-primary btn-block" type="button" id="run" data-bind="click: run">Run</button>
+
+                    <hr/>
+
+                    <div id="output">
+                        <ul class="list-unstyled" data-bind="foreach: log_items">
+                            <li class="line" data-bind="html: $data"></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <table class="table">
+                        <tr>
+                            <th>Points</th>
+                            <td data-bind="text: points"></td>
+                        </tr>
+                        <tr>
+                            <th>Execution speed</th>
+                            <td data-bind="text: num_steps"></td>
+                        </tr>
+                    </table>
+
+                    <div id="challenges">
+                        <h3>Challenges</h3>
+                        <div class="list-group" data-bind="foreach: challenges">
+                            <div class="list-group-item">
+                                <h4 data-bind="text: name"></h4>
+                                <!-- ko if: unlocked -->
+                                <div data-bind="html: description"></div>
+                                <p><strong>Reward:</strong> <span data-bind="text: reward"></span></p>
+                                <p><strong>Examples</strong></p>
+                                <ul data-bind="foreach: examples">
+                                    <li><code data-bind="text: JSON.stringify(from,null,2)"></code> → <code data-bind="text: JSON.stringify(to,null,2)"></code></li>
+                                </ul>
+                                <!-- /ko -->
+                                <!-- ko if: !unlocked() -->
+                                <button class="btn btn-info" data-bind="click: $root.unlock_challenge, disable: $root.points()<price">Unlock for <span data-bind="text: price"></span> points</button>
+                                <!-- /ko -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-danger btn-block" data-bind="click: reset">Reset</button>
+                </div>
+            </div>
+            <div class="row">
+                <div id="explanation">
+                    <h3>How to play</h3>
+                    <p>Write code to complete challenges.</p>
+                    <p>Get data to start a challenge with <code>var data = challenge(challenge_name)</code></p>
+                    <p>Submit your answer with <code>submit(challenge_name,answer)</code></p>
+                </div>
+            </div>
+        </div>
+
+
+
+		<script src="thing.js"></script>
+	</body>
+</html>
