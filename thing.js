@@ -1,3 +1,6 @@
+function debug(msg) {
+}
+
 ko.bindingHandlers.codemirror = {
     init: function(element,valueAccessor) {
         var config = valueAccessor();
@@ -58,7 +61,15 @@ function init_interpreter(interpreter,scope) {
     function wrap_external(fn) {
         return function() {
             var o = fn.apply({},Array.prototype.map.call(arguments,unwrap_value));
-            return interpreter.createPrimitive(o);
+            if(typeof(o)=='object') {
+                var io = interpreter.createObject();
+                for(var key in o) {
+                    interpreter.setProperty(io,key,interpreter.createPrimitive(o[key]));
+                }
+                return io;
+            } else {
+               return interpreter.createPrimitive(o);
+            }
         }
     }
 
@@ -68,12 +79,12 @@ function init_interpreter(interpreter,scope) {
     interpreter.setProperty(scope,'log',interpreter.createNativeFunction(wrap_external(log)));
 
     function start_challenge(name) {
-        return interpreter.createPrimitive(cg.start_challenge(name));
+        return cg.start_challenge(name);
     }
     interpreter.setProperty(scope,'challenge',interpreter.createNativeFunction(wrap_external(start_challenge)));
 
     function submit_challenge(name,value) {
-        console.log('submitting',value);
+        debug('submitting',value);
         return cg.submit_challenge(name,value);
     }
     interpreter.setProperty(scope,'submit',interpreter.createNativeFunction(wrap_external(submit_challenge)));
@@ -135,7 +146,7 @@ CookieGolf.prototype = {
         this.points(d.points);
         this.code(d.code);
         d.challenges.map(function(dc) {
-            console.log(dc);
+            debug(dc);
             var challenge = cg.challenge_dict()[dc.name];
             challenge.unlocked(dc.unlocked);
         });
@@ -148,7 +159,7 @@ CookieGolf.prototype = {
 
     log: function() {
         var o = Array.prototype.join.call(arguments,[' ']);
-        console.log(o);
+        debug(o);
         this.log_items.push(o);
     },
 
@@ -179,7 +190,7 @@ CookieGolf.prototype = {
         var challenge = this.get_challenge(name);
         challenge.begin();
         var data = challenge.current_data();
-        console.log('Start challenge '+name,data);
+        debug('Start challenge '+name,data);
         this.log("Started challenge <code>"+name+"</code> with data <code>"+JSON.stringify(data,null,2)+"</code>");
         return data;
     },
@@ -233,7 +244,7 @@ CookieGolf.prototype = {
             var go = this.interpreter.step()
         } catch(e) {
             this.log("ERROR: ",e);
-            console.log(e.stack);
+            debug(e.stack);
             return false;
         }
         return go;
@@ -322,7 +333,7 @@ cg.add_challenge('say_hi',{
 })
 
 cg.add_challenge('announce',{
-    reward: 100,
+    reward: 200,
     price: 10000,
     description: 'Announce guests at a ball, with their full titles',
     data_generator: function() {
@@ -333,7 +344,8 @@ cg.add_challenge('announce',{
         }
     },
     test: function(value,data) {
-        return data.title+' '+data.first_name+' '+data.second_name;
+        var expect  = data.title+' '+data.first_name+' '+data.second_name;
+        return value==expect;
     },
     examples: [
         {
@@ -348,8 +360,8 @@ cg.add_challenge('announce',{
 });
 
 cg.add_challenge('factorise',{
-    reward: 0,
-    price: 0,
+    reward: 3000,
+    price: 50000,
     description: "Factorise a given number",
     data_generator: function() {
         return Math.floor(Math.random()*100+10);
@@ -385,12 +397,3 @@ ko.computed(function() {
 
 
 ko.applyBindings(cg);
-
-document.getElementById('run').addEventListener('click',function() {
-    console.clear();
-    var code = document.getElementById('code').value;
-    localStorage.code = code;
-    cg.run(code,1000);
-});
-
-document.getElementById('code').value = localStorage.code || '';
