@@ -1,6 +1,18 @@
 function debug(msg) {
 }
 
+function save_raw_attrs(obj,out,attrs) {
+	attrs.forEach(function(attr) {
+		out[attr] = ko.unwrap(obj[attr]);
+	});
+}
+
+function load_raw_attrs(obj,data,attrs) {
+	attrs.forEach(function(attr) {
+		obj[attr](data[attr]);
+	});
+}
+
 function int_obs(v) {
 	var obs = ko.observable(v);
 	return ko.computed({
@@ -11,6 +23,11 @@ function int_obs(v) {
 			return obs(v);
 		}
 	});
+}
+
+function choice(list) {
+	var i = Math.floor(Math.random()*list.length);
+	return list[i];
 }
 
 ko.bindingHandlers.progress = {
@@ -71,16 +88,21 @@ function Challenge(cg,name,options) {
         var p = this.cg.points()/this.price;
         return Math.min(p,1);
     },this);
+
 }
 Challenge.prototype = {
+	save_raw_attrs: ['unlocked'],
+
     save: function() {
-        return {
-            name: this.name,
-            unlocked: this.unlocked()
-        }
+        var out = {
+            name: this.name
+		}
+		save_raw_attrs(this,out,this.save_raw_attrs);
+		return out;
     },
+
     load: function(d) {
-        this.unlocked(d.unlocked);
+		load_raw_attrs(this,d,this.save_raw_attrs);
     }
 }
 
@@ -116,18 +138,17 @@ function Perk(cg,options,last) {
 	}
 }
 Perk.prototype = {
+	save_raw_attrs: ['unlocked','num_bought','price'],
+
     save: function() {
-        return {
-            name: this.name,
-            unlocked: this.unlocked(),
-            num_bought: this.num_bought(),
-			price: this.price()
-        }
+		var o = {
+            name: this.name
+		}
+		save_raw_attrs(this,o,this.save_raw_attrs);
+		return o;
     },
     load: function(d) {
-        this.unlocked(d.unlocked);
-        this.num_bought(d.num_bought);
-		this.price(d.price);
+		load_raw_attrs(this,d,this.save_raw_attrs)
     }
 }
 
@@ -160,6 +181,7 @@ function Processor(cg) {
         }
     }
     this.running = ko.observable(false);
+	this.keep_running = ko.observable(false);
     this.log_items = ko.observableArray([]);
 	this.show_output = ko.observable(true);
 
@@ -171,14 +193,16 @@ function Processor(cg) {
 	this.num_steps = ko.observable(0);
 }
 Processor.prototype = {
+	save_raw_attrs: ['code','keep_running'],
+
     save: function() {
-        return {
-            code: this.code()
-        }
+		var o = {};
+		save_raw_attrs(this,o,this.save_raw_attrs);
+		return o;
     },
 
     load: function(data) {
-        this.code(data.code);
+		load_raw_attrs(this,data,this.save_raw_attrs);
     },
 
     log: function() {
@@ -207,14 +231,18 @@ Processor.prototype = {
             this.cg.reward(challenge.reward);
             this.log("Passed! Rewarded "+challenge.reward+" points");
         } else {
-            this.log("Failed. Expected <code>"+JSON.stringify(this.challenge_data[name],null,2)+"</code>");
+            this.log("Failed. Expected <code>"+JSON.stringify(challenge.expected(this.challenge_data[name]),null,2)+"</code>");
         }
         delete this.challenge_data[name];
     },
 
     tryStep: function() {
+		if(!this.running()) {
+			return;
+		}
         var processor = this;
-        var execution_speed = this.execution_speed();
+        var execution_speed = this.execution_speed() + (this.steps_remaining || 0);
+		this.steps_remaining = 0;
         var go;
         this.step_cost = 0;
         for(var i=0;i<execution_speed;i++) {
@@ -227,11 +255,13 @@ Processor.prototype = {
             var delay = this.step_cost > 0 ? this.step_delay() : 0;
             setTimeout(function() { processor.tryStep() }, delay);
         } else {
+			this.steps_remaining = execution_speed - i;
             this.end();
         }
     },
 
     step: function() {
+		this.step_success = false;
 		this.num_steps(this.num_steps()+1);
 		if(this.num_steps()>this.cg.max_steps()) {
 			this.log("Took too long to finish!");
@@ -254,9 +284,9 @@ Processor.prototype = {
         } catch(e) {
             this.log("ERROR: ",e);
             debug(e.stack);
-            this.end();
             return false;
         }
+		this.step_success = true;
         return go;
     },
 
@@ -267,18 +297,34 @@ Processor.prototype = {
     end: function() {
         this.running(false);
 		this.log("Finished running after "+this.num_steps()+" steps");
+		this.run_times -= 1;
+		if(this.keep_running() && this.step_success && this.run_times>0) {
+			setTimeout(this.run(),100);
+		}
     },
 
-    run: function(code) {
+	start_run: function() {
+		this.log_items([]);
+		this.run_times = this.cg.run_times();
+		this.run();
+	},
+
+	stop_run: function() {
+		this.run_times = 0;
+		this.end();
+	},
+
+    run: function() {
         if(this.running()) {
             return;
         }
+
+		this.log("Beginning a run");
 
         var processor = this;
 
         this.challenge_data = {};
 
-		this.log_items([]);
 		this.num_steps(0);
 
         function init_interpreter(interpreter,scope) {
@@ -332,9 +378,12 @@ function CodeClicker() {
         });
         return o;
     },this);
-    this.unlocked_challenges = ko.computed(function() {
-        return this.challenges().filter(c=>c.unlocked());
-    },this);
+	this.visible_challenges = ko.computed(function() {
+		var challenges = this.challenges();
+		for(var i=challenges.length-1;i>=0 && !challenges[i].unlocked();i--) {
+		}
+		return challenges.slice(0,i+2);
+	},this);
 
     this.perk_threads = ko.observableArray([]);
 
@@ -343,6 +392,8 @@ function CodeClicker() {
 
     this.step_delay = ko.observable(100);
     this.execution_speed = ko.observable(1);
+
+	this.run_times = ko.observable(1);
 
     this.max_lines = ko.observable(2);
 	this.max_steps = ko.observable(25);
@@ -384,7 +435,7 @@ function CodeClicker() {
     }
 }
 CodeClicker.prototype = {
-    save_raw_attrs: ['points','execution_speed','step_delay','max_lines','max_steps'],
+    save_raw_attrs: ['points','execution_speed','step_delay','max_lines','max_steps','run_times'],
 
     init: function() {
         this.show_processor(this.add_processor());
@@ -400,9 +451,8 @@ CodeClicker.prototype = {
                 return t.map(function(p){ return p.save() });
             })
         }
-        this.save_raw_attrs.forEach(function(attr) {
-            o[attr] = ko.unwrap(cg[attr]);
-        });
+		save_raw_attrs(this,o,this.save_raw_attrs);
+
         localStorage['code-clicker'] = JSON.stringify(o);
     },
 
@@ -415,9 +465,7 @@ CodeClicker.prototype = {
         }
         d = JSON.parse(d);
 
-        this.save_raw_attrs.forEach(function(attr) {
-            cg[attr](d[attr]);
-        });
+		load_raw_attrs(this,d,this.save_raw_attrs);
 
         d.challenges.map(function(dc) {
             debug(dc);
@@ -534,79 +582,10 @@ CodeClicker.prototype = {
 
 var cg = new CodeClicker();
 
-cg.add_challenge('echo',{
-    reward: 260,
-    price: 500,
-    description: "Return what you're given",
-    data_generator: function() {
-        return Math.random()*1000;
-    },
-    test: function(value,data) {
-        return value==data;
-    },
-    examples: [
-        {
-            from: 0.13214,
-            to: 0.13214
-        }
-    ]
-})
-
-cg.add_challenge('announce',{
-    reward: 500,
-    price: 15000,
-    description: 'Announce guests at a ball, with their full titles',
-    data_generator: function() {
-        return {
-            first_name: "Bob",
-            second_name: "Smythe",
-            title: "Lord",
-        }
-    },
-    test: function(value,data) {
-        var expect  = data.title+' '+data.first_name+' '+data.second_name;
-        return value==expect;
-    },
-    examples: [
-        {
-            from: {
-                first_name: "Bob",
-                second_name: "Smythe",
-                title: "Lord",
-            },
-            to: "Lord Bob Smythe"
-        }
-    ]
-});
-
-cg.add_challenge('factorise',{
-    reward: 3000,
-    price: 50000,
-    description: "Factorise a given number",
-    data_generator: function() {
-        return Math.floor(Math.random()*100+10);
-    },
-    test: function(value,data) {
-        function is_prime(n) {
-            if(n<2) {
-                return false;
-            }
-            for(var i=2;i*i<=n;i++) {
-                if(n%i==0) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return value.every(is_prime) && value.reduce((t,x)=>t*x,1)==data;
-    },
-    examples: [
-        {
-            from: 24,
-            to: [2,2,2,3]
-        }
-    ]
-});
+for(var name in challenges) {
+	console.log(name);
+	cg.add_challenge(name,challenges[name]);
+};
 
 perk_threads.forEach(function(td) {
 	cg.add_perk_thread(td);
