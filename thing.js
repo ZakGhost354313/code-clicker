@@ -1,6 +1,28 @@
 function debug(msg) {
 }
 
+function int_obs(v) {
+	var obs = ko.observable(v);
+	return ko.computed({
+		read: function() {
+			return Math.round(obs());
+		},
+		write: function(v) {
+			return obs(v);
+		}
+	});
+}
+
+ko.bindingHandlers.progress = {
+	update: function(element, valueAccessor) {
+		var value = ko.unwrap(valueAccessor());
+		element.style.width = value*100+'%';
+		element.classList.toggle('progress-bar-success',value==1);
+		element.classList.toggle('progress-bar-striped',value==1);
+		element.classList.toggle('active',value==1);
+	}
+}
+
 // Knockout codemirror binding handler
 ko.bindingHandlers.codemirror = {
     init: function(element, valueAccessor, allBindings, viewModel, bindingContext) {
@@ -47,7 +69,7 @@ function Challenge(cg,name,options) {
 
     this.progress = ko.computed(function() {
         var p = this.cg.points()/this.price;
-        return Math.min(p,1)*100;
+        return Math.min(p,1);
     },this);
 }
 Challenge.prototype = {
@@ -62,33 +84,50 @@ Challenge.prototype = {
     }
 }
 
-function Perk(cg,options) {
+function Perk(cg,options,last) {
     this.cg = cg;
+	this.last = last;
+	this.next = ko.observable(null);
     this.name = options.name;
     this.repeats = options.repeats;
     this.description = options.description;
-    this.price = options.price;
+	this.price = int_obs(options.price);
+	this.price_factor = options.price_factor || 1;
     this.unlocked = ko.observable(false);
     this.num_bought = ko.observable(0);
     this.apply = options.apply;
     this.sell = options.sell;
+	this.sell_price = ko.computed(function() {
+		return this.price()/this.price_factor;
+	},this);
+
+	this.visible = ko.computed(function() {
+		var next_bought = this.next() && this.next().num_bought()>0;
+		return (this.last==null || this.last.num_bought()>0) && !next_bought;
+	},this);
 
     this.progress = ko.computed(function() {
-        var p = this.cg.points()/this.price;
-        return Math.min(p,1)*100;
+        var p = this.cg.points()/this.price();
+        return Math.min(p,1);
     },this);
+
+	if(last) {
+		last.next(this);
+	}
 }
 Perk.prototype = {
     save: function() {
         return {
             name: this.name,
             unlocked: this.unlocked(),
-            num_bought: this.num_bought()
+            num_bought: this.num_bought(),
+			price: this.price()
         }
     },
     load: function(d) {
         this.unlocked(d.unlocked);
         this.num_bought(d.num_bought);
+		this.price(d.price);
     }
 }
 
@@ -122,13 +161,14 @@ function Processor(cg) {
     }
     this.running = ko.observable(false);
     this.log_items = ko.observableArray([]);
+	this.show_output = ko.observable(true);
 
     this.step_delay = cg.step_delay;
-    this.num_steps = cg.num_steps;
+    this.execution_speed = cg.execution_speed;
 
     this.log("Ready to begin");
-
-    this.challenge_data = {};
+	
+	this.num_steps = ko.observable(0);
 }
 Processor.prototype = {
     save: function() {
@@ -144,7 +184,7 @@ Processor.prototype = {
     log: function() {
         var o = Array.prototype.join.call(arguments,[' ']);
         debug(o);
-        this.log_items.push(o);
+        this.log_items.splice(0,0,o);
     },
 
     start_challenge: function(name) {
@@ -174,10 +214,10 @@ Processor.prototype = {
 
     tryStep: function() {
         var processor = this;
-        var num_steps = this.num_steps();
+        var execution_speed = this.execution_speed();
         var go;
         this.step_cost = 0;
-        for(var i=0;i<num_steps;i++) {
+        for(var i=0;i<execution_speed;i++) {
             go = this.step();
             if(!go) {
                 break;
@@ -192,13 +232,18 @@ Processor.prototype = {
     },
 
     step: function() {
+		this.num_steps(this.num_steps()+1);
+		if(this.num_steps()>this.cg.max_steps()) {
+			this.log("Took too long to finish!");
+			return;
+		}
+
         if(this.interpreter.stateStack.length) {
             var op = this.interpreter.stateStack[0];
             var cost = this.cost(op);
             this.step_cost += cost;
             if(cost>this.cg.points()) {
-                this.log("Ran out of points!");
-                this.end();
+                this.log("Ran out of points: cost of "+op.node.type+" is "+cost+" points!");
                 return;
             } else {
                 this.cg.spend(cost);
@@ -221,6 +266,7 @@ Processor.prototype = {
 
     end: function() {
         this.running(false);
+		this.log("Finished running after "+this.num_steps()+" steps");
     },
 
     run: function(code) {
@@ -231,6 +277,9 @@ Processor.prototype = {
         var processor = this;
 
         this.challenge_data = {};
+
+		this.log_items([]);
+		this.num_steps(0);
 
         function init_interpreter(interpreter,scope) {
             function wrap_external(fn) {
@@ -290,12 +339,13 @@ function CodeClicker() {
     this.perk_threads = ko.observableArray([]);
 
     this.budget = ko.observable(1000);
-    this.points = ko.observable(2000);
+    this.points = int_obs(2000);
 
     this.step_delay = ko.observable(100);
-    this.num_steps = ko.observable(1);
+    this.execution_speed = ko.observable(1);
 
     this.max_lines = ko.observable(2);
+	this.max_steps = ko.observable(25);
 
     this.processors = ko.observableArray([]);
     this.show_processor = ko.observable(this.processors()[0]);
@@ -312,27 +362,29 @@ function CodeClicker() {
     }
 
     this.unlock_perk = function(perk) {
-        if(perk.price<=cg.points()) {
+        if(perk.price()<=cg.points()) {
             if(!perk.repeats) {
                 perk.unlocked(true);
             }
             perk.num_bought(perk.num_bought()+1);
-            cg.spend(perk.price);
+            cg.spend(perk.price());
             perk.apply(cg);
+			perk.price(perk.price()*perk.price_factor);
         }
     }
 
     this.sell_perk = function(perk) {
         perk.sell(cg);
-        cg.reward(perk.price);
-        if(perk.repeats) {
+        cg.reward(perk.price());
+        if(!perk.repeats) {
             perk.unlocked(false);
         }
         perk.num_bought(perk.num_bought()-1);
+		perk.price(perk.price()/perk.price_factor);
     }
 }
 CodeClicker.prototype = {
-    save_raw_attrs: ['points','num_steps','step_delay','max_lines'],
+    save_raw_attrs: ['points','execution_speed','step_delay','max_lines','max_steps'],
 
     init: function() {
         this.show_processor(this.add_processor());
@@ -393,11 +445,11 @@ CodeClicker.prototype = {
     },
 
     spend: function(n) {
-        this.points(this.points()-n);
+        this.points(this.points()-Math.floor(n));
     },
 
     reward: function(n) {
-        this.points(this.points()+n);
+        this.points(this.points()+Math.floor(n));
     },
 
     add_processor: function() {
@@ -423,7 +475,11 @@ CodeClicker.prototype = {
 
     add_perk_thread: function(thread) {
         var cg = this;
-        this.perk_threads.push(thread.map(function(options){ return new Perk(cg,options)}));
+		var perk = null;
+        this.perk_threads.push(thread.map(function(options){ 
+			perk = new Perk(cg,options,perk);
+			return perk;
+		}));
     },
 
     cost: function(op) {
@@ -552,55 +608,9 @@ cg.add_challenge('factorise',{
     ]
 });
 
-cg.add_perk_thread([
-    {
-        name: 'Execution Speed 1',
-        description: '2× execution speed',
-        price: 1000,
-        apply: function(cg) {
-            cg.num_steps(cg.num_steps()*2);
-        },
-        sell: function(cg) {
-            cg.num_steps(cg.num_steps()/2);
-        }
-    },
-    {
-        name: 'Execution Speed 2',
-        description: '3× execution speed',
-        price: 5000,
-        apply: function(cg) {
-            cg.num_steps(3*cg.num_steps());
-        },
-        sell: function(cg) {
-            cg.num_steps(cg.num_steps()/3);
-        }
-    },
-    {
-        name: 'Execution Speed 3',
-        description: '4× execution speed',
-        price: 10000,
-        apply: function(cg) {
-            cg.num_steps(4*cg.num_steps());
-        },
-        sell: function(cg) {
-            cg.num_steps(cg.num_steps()/4);
-        }
-    },
-]);
-cg.add_perk_thread([
-    {
-        name: 'One more line',
-        description: '+1 maximum lines',
-        price: 1000,
-        repeats: true,
-        apply: function(cg) {
-            cg.max_lines(cg.max_lines()+1);
-        },
-        sell: function(cg) {
-            cg.max_lines(cg.max_lines()-1);
-        }
-    }
-]);
+perk_threads.forEach(function(td) {
+	cg.add_perk_thread(td);
+});
 
 cg.load();
 
