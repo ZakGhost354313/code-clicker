@@ -1,4 +1,4 @@
-var challenges = {
+var challenge_configs = {
 	'echo': {
 		reward: 260,
 		price: 500,
@@ -19,7 +19,7 @@ var challenges = {
 
 	'announce': {
 		reward: 500,
-		price: 15000,
+		price: 10000,
 		description: 'Announce guests at a ball, with their full titles',
 		data_generator: function() {
 			return {
@@ -43,6 +43,33 @@ var challenges = {
 			}
 		]
 	},
+
+    'fizzbuzz-single': {
+        reward: 750,
+        price: 20000,
+        description: "If the given number is a multiple of 3, return <code>'Fizz'</code>. If it's a multiple of 5, return <code>'Buzz'</code>. If both, return <code>'FizzBuzz'</code>. If neither, return the number.",
+        data_generator: function() {
+            return Math.floor(Math.random()*10000);
+        },
+        test: function(value,data) {
+            switch(0) {
+                case data%15:
+                    return value=='FizzBuzz';
+                case data%3:
+                    return value=='Fizz';
+                case data%5:
+                    return value=='Buzz';
+                default:
+                    return value==data;
+            }
+        },
+        examples: [
+            {from: 2, to: 2},
+            {from: 18, to: 'Fizz'},
+            {from: 105, to: 'Buzz'},
+            {from: 75, to: 'FizzBuzz'}
+       ]
+    },
 
 	'factorise1': {
 		reward: 3000,
@@ -100,7 +127,7 @@ var challenges = {
 				to: [2,3,3,13]
 			}
 		]
-	}
+	},
 }
 
 

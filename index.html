@@ -24,7 +24,7 @@
                 <div class="col-sm-8">
                     <ul class="nav nav-pills nav-justified" data-bind="visible: processors().length>1, foreach: processors">
                         <li data-bind="css: {active: $data==$root.show_processor()}">
-                            <a href="#" data-bind="text: $index, click: $root.show_processor"></a>
+                            <a href="#" data-bind="click: $root.show_processor"><span data-bind="text: $index,"></span><span data-bind="visible: running">...</span></a>
                         </li>
                     </ul>
                     <div class="tab-content" data-bind="foreach: processors">
@@ -57,7 +57,7 @@
 							</div>
                             <div class="output" data-bind="visible: show_output, if: show_output">
                                 <ul class="list-unstyled" data-bind="foreach: log_items">
-                                    <li class="line" data-bind="html: $data"></li>
+                                    <li class="line" data-bind="html: message, attr: {'class': 'line '+kind}"></li>
                                 </ul>
                             </div>
                         </div>

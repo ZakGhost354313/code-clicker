@@ -1,3 +1,5 @@
+ko.options.deferUpdates = true;
+
 function debug(msg) {
 }
 
@@ -176,6 +178,7 @@ function Processor(cg) {
     this.cg = cg;
     this.code = ko.observable('');
     this.code.clean = function(change) {
+        change.update(change.from,change.to,change.text.map(function(l){return l.slice(0,80)}));
         if(change.text.length>processor.cg.max_lines()) {
             change.update(change.from,change.to,change.text.slice(0,processor.cg.max_lines()));
         }
@@ -188,7 +191,7 @@ function Processor(cg) {
     this.step_delay = cg.step_delay;
     this.execution_speed = cg.execution_speed;
 
-    this.log("Ready to begin");
+    this.log('info',"Ready to begin");
 	
 	this.num_steps = ko.observable(0);
 }
@@ -205,22 +208,24 @@ Processor.prototype = {
 		load_raw_attrs(this,data,this.save_raw_attrs);
     },
 
-    log: function() {
-        var o = Array.prototype.join.call(arguments,[' ']);
+    log: function(kind,message) {
+        var bits = Array.prototype.slice.call(arguments,[1]);
+        var o = Array.prototype.join.call(bits,[' ']);
         debug(o);
-        this.log_items.splice(0,0,o);
+        kind = {'info':'info','bad':'danger','success':'success','log':'default'}[kind] || 'default';
+        this.log_items.splice(0,0,{kind:'text-'+kind,message:o});
     },
 
     start_challenge: function(name) {
         var challenge = this.cg.get_challenge(name);
         var data = this.challenge_data[name] = challenge.data_generator();
         debug('Start challenge '+name,data);
-        this.log("Started challenge <code>"+name+"</code> with data <code>"+JSON.stringify(data,null,2)+"</code>");
+        this.log('info',"Started challenge <code>"+name+"</code> with data <code>"+JSON.stringify(data,null,2)+"</code>");
         return data;
     },
 
     submit_challenge: function(name,value) {
-        this.log("Submit challenge <code>"+name+"</code> with data <code>"+JSON.stringify(value,null,2)+"</code>");
+        this.log('info',"Submit challenge <code>"+name+"</code> with data <code>"+JSON.stringify(value,null,2)+"</code>");
 
         var challenge = this.cg.get_challenge(name);
         if(this.challenge_data[name]===undefined) {
@@ -229,9 +234,9 @@ Processor.prototype = {
         var passed = challenge.test(value,this.challenge_data[name]);
         if(passed) {
             this.cg.reward(challenge.reward);
-            this.log("Passed! Rewarded "+challenge.reward+" points");
+            this.log('success',"Passed! Rewarded "+challenge.reward+" points");
         } else {
-            this.log("Failed. Expected <code>"+JSON.stringify(challenge.expected(this.challenge_data[name]),null,2)+"</code>");
+            this.log('bad',"Failed.");
         }
         delete this.challenge_data[name];
     },
@@ -264,7 +269,7 @@ Processor.prototype = {
 		this.step_success = false;
 		this.num_steps(this.num_steps()+1);
 		if(this.num_steps()>this.cg.max_steps()) {
-			this.log("Took too long to finish!");
+			this.log('bad',"Took too long to finish!");
 			return;
 		}
 
@@ -273,7 +278,7 @@ Processor.prototype = {
             var cost = this.cost(op);
             this.step_cost += cost;
             if(cost>this.cg.points()) {
-                this.log("Ran out of points: cost of "+op.node.type+" is "+cost+" points!");
+                this.log('bad',"Ran out of points: cost of "+op.node.type+" is "+cost+" points!");
                 return;
             } else {
                 this.cg.spend(cost);
@@ -282,7 +287,7 @@ Processor.prototype = {
         try {
             var go = this.interpreter.step();
         } catch(e) {
-            this.log("ERROR: ",e);
+            this.log('bad',"ERROR: ",e);
             debug(e.stack);
             return false;
         }
@@ -296,7 +301,7 @@ Processor.prototype = {
 
     end: function() {
         this.running(false);
-		this.log("Finished running after "+this.num_steps()+" steps");
+		this.log('info',"Finished running after "+this.num_steps()+" steps");
 		this.run_times -= 1;
 		if(this.keep_running() && this.step_success && this.run_times>0) {
 			setTimeout(this.run(),100);
@@ -319,7 +324,7 @@ Processor.prototype = {
             return;
         }
 
-		this.log("Beginning a run");
+		this.log('info',"Beginning a run");
 
         var processor = this;
 
@@ -344,7 +349,7 @@ Processor.prototype = {
             }
 
             function log(msg) {
-                processor.log('LOG: ',JSON.stringify(msg));
+                processor.log('log','LOG: ',JSON.stringify(msg));
             }
             interpreter.setProperty(scope,'log',interpreter.createNativeFunction(wrap_external(log)));
 
@@ -582,9 +587,9 @@ CodeClicker.prototype = {
 
 var cg = new CodeClicker();
 
-for(var name in challenges) {
+for(var name in challenge_configs) {
 	console.log(name);
-	cg.add_challenge(name,challenges[name]);
+	cg.add_challenge(name,challenge_configs[name]);
 };
 
 perk_threads.forEach(function(td) {

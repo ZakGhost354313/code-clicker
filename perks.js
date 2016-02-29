@@ -101,9 +101,9 @@ var perk_threads = [
 		{
 			name: 'Parallel computation!',
 			description: 'Add another processor',
-			price: 50000,
+			price: 10000,
 			repeats: true,
-			price_factor: 3,
+			price_factor: 5,
 			apply: function(cg) {
 				cg.add_processor();
 			},
@@ -127,12 +127,23 @@ var perk_threads = [
 		{
 			name: 'Run 5 times',
 			description: 'Run your code five times each time you press the <em>Run</em> button',
-			price: 50000,
+			price: 150000,
 			apply: function(cg) {
 				cg.run_times(5)
 			},
 			sell: function(ch) {
 				cg.run_times(2)
+			}
+		},
+		{
+			name: 'Run 10 times',
+			description: 'Run your code ten times each time you press the <em>Run</em> button',
+			price: 1000000,
+			apply: function(cg) {
+				cg.run_times(10)
+			},
+			sell: function(ch) {
+				cg.run_times(5)
 			}
 		},
 		{
