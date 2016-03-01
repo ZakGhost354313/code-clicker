@@ -44,6 +44,17 @@ var perk_threads = [
 				cg.execution_speed(cg.execution_speed()/5);
 			}
 		},
+		{
+			name: 'Execution Speed 5',
+			description: '6× execution speed',
+			price: 250000,
+			apply: function(cg) {
+				cg.execution_speed(cg.execution_speed()*5);
+			},
+			sell: function(cg) {
+				cg.execution_speed(cg.execution_speed()/5);
+			}
+		},
 	],
 	[
 		{

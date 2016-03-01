@@ -100,6 +100,43 @@ var challenge_configs = {
 		]
 	},
 
+    'caesar-cypher': {
+        reward: 10000,
+        price: 100000,
+        description: "Replace each letter in the given string with the letter <code>n</code> places further down the alphabet. Leave other characters unchanged.",
+        data_generator: function() {
+            return {
+                phrase: choice(corpora['shakespeare_phrases.json'].phrasess).trim(),
+                n: randrange(-60,60)
+            }
+        },
+        test: function(value,data) {
+            var alphabet_lower = 'abcdefghijklmnopqrstuvwxyz';
+            var alphabet_upper = alphabet_lower.toUpperCase();
+            var map = {};
+            for(var i=0;i<alphabet_lower.length;i++) {
+                var j = (i-data.n)%alphabet_lower.length;
+                while(j<0) {
+                    j += alphabet_lower.length;
+                }
+                map[alphabet_lower[i]] = alphabet_lower[j];
+                map[alphabet_upper[i]] = alphabet_upper[j];
+            }
+            var mapped = value.split('').map(function(x){return map[x] || x}).join('');
+            return data.phrase==mapped;
+        },
+        examples: [
+            {
+                from: { "phrase": "Tedious as a twice-told tale", "n": 25 },
+                to: "Sdchntr zr z svhbd-snkc szkd"
+            },
+            {
+                from: { "phrase": "Comparisons are odorous", "n": -48 },
+                to: "Gsqtevmwsrw evi shsvsyw"
+            }
+        ]
+    },
+
 	'factorise2': {
 		reward: 30000,
 		price: 500000,

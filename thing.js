@@ -1,5 +1,10 @@
 ko.options.deferUpdates = true;
 
+function reset() {
+    delete localStorage['code-clicker'];
+    window.location+='';
+}
+
 function debug(msg) {
 }
 
@@ -25,6 +30,10 @@ function int_obs(v) {
 			return obs(v);
 		}
 	});
+}
+
+function randrange(min,max) {
+    return Math.floor(Math.random()*(max-min))+min;
 }
 
 function choice(list) {
@@ -490,11 +499,6 @@ CodeClicker.prototype = {
             processor.load(dp);
         });
         this.show_processor(this.processors()[0]);
-    },
-
-    reset: function() {
-        delete localStorage['code-clicker'];
-        window.location+='';
     },
 
     spend: function(n) {
