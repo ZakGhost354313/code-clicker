@@ -63,12 +63,6 @@ ko.bindingHandlers.codemirror = {
             var value = valueAccessor();
             value(cm.getValue());
         });
-        if(value.clean) {
-            editor.on('beforeChange',function(cm,change) {
-                var value = valueAccessor();
-                value.clean(change);
-            });
-        }
 
         element.editor = editor;
     },
@@ -186,12 +180,21 @@ function Processor(cg) {
     var processor = this;
     this.cg = cg;
     this.code = ko.observable('');
-    this.code.clean = function(change) {
-        change.update(change.from,change.to,change.text.map(function(l){return l.slice(0,80)}));
-        if(change.text.length>processor.cg.max_lines()) {
-            change.update(change.from,change.to,change.text.slice(0,processor.cg.max_lines()));
+    this.code_valid_obj = ko.computed(function() {
+        var lines = this.code().split('\n');
+        if(lines.length>this.cg.max_lines()) {
+            return {valid: false, reason: 'too many lines'};
         }
-    }
+        for(var i=0;i<lines.length;i++) {
+            if(lines[i].length>80) {
+                return {valid: false, reason: 'line too long', line: i}
+            }
+        }
+        return {valid: true}
+    },this);
+    this.code_valid = ko.computed(function() {
+        return this.code_valid_obj().valid;
+    },this);
     this.running = ko.observable(false);
 	this.keep_running = ko.observable(false);
     this.log_items = ko.observableArray([]);
@@ -319,6 +322,12 @@ Processor.prototype = {
 
 	start_run: function() {
 		this.log_items([]);
+
+        if(!this.code_valid()) {
+            this.log('bad','Error: '+this.code_valid_obj().reason);
+            return;
+        }
+
 		this.run_times = this.cg.run_times();
 		this.run();
 	},

@@ -48,7 +48,7 @@ main {
 
 main > section {
     margin-bottom: 2rem;
-    flex-basis: 25rem;
+    flex-basis: 15rem;
     flex-grow: 4;
     max-height: 80vh;
     overflow-y: auto;
@@ -89,4 +89,11 @@ code {
   background: #222;
   color: #eee;
   padding: 0 0.2rem;
+}
+
+.list-group-item ~ .list-group-item {
+    margin-top: 1rem;
+}
+progress {
+    width: 100%;
 }
