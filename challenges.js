@@ -17,7 +17,7 @@ var challenge_configs = {
 		]
 	},
 
-	'announce': {
+	'ann1': {
 		reward: 500,
 		price: 10000,
 		description: 'Announce guests at a ball, with their full titles',
@@ -44,7 +44,31 @@ var challenge_configs = {
 		]
 	},
 
-    'fizzbuzz-single': {
+    'ann2': {
+        reward: 1000,
+        price: 50000,
+        description: 'Announce the guests at an academic conference, based on the biographical information given.',
+        data_generator: function() {
+            return {
+				first_name: choice(corpora['firstNames.json'].firstNames),
+				second_name: choice(corpora['lastNames.json'].lastNames),
+				has_doctorate: choice(true,false),
+			}
+        },
+        examples: [
+            {
+                from: {first_name: "Amanda", second_name: "Ford", has_doctorate: true},
+                to: "Dr Amanda Ford"
+            },
+            {
+                from: {first_name: "Naomi", second_name: "Kennedy", has_doctorate: false},
+                to: "Naomi Kennedy"
+            }
+        ]
+    },
+
+
+    'fb1': {
         reward: 750,
         price: 20000,
         description: "If the given number is a multiple of 3, return <code>'Fizz'</code>. If it's a multiple of 5, return <code>'Buzz'</code>. If both, return <code>'FizzBuzz'</code>. If neither, return the number.",
