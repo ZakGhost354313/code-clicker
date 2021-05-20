@@ -1,7 +1,7 @@
 var challenge_configs = {
 	'echo': {
-		reward: 260000000000000000,
-		price: 1,
+		reward: 260,
+		price: 500,
 		description: "Return what you're given",
 		data_generator: function() {
 			return Math.random()*1000;
@@ -18,8 +18,8 @@ var challenge_configs = {
 	},
 
 	'ann1': {
-		reward: 500000000000000000000000,
-		price: 1,
+		reward: 500,
+		price: 10000,
 		description: 'Announce guests at a ball, with their full titles',
 		data_generator: function() {
 			return {
@@ -45,7 +45,7 @@ var challenge_configs = {
 	},
 
     'ann2': {
-        reward: 1000000000000000000,
+        reward: 1000,
         price: 50000,
         description: 'Announce the guests at an academic conference, based on the biographical information given.',
         data_generator: function() {
@@ -69,8 +69,8 @@ var challenge_configs = {
 
 
     'fb1': {
-        reward: 750000000000000000,
-        price: 1,
+        reward: 750,
+        price: 20000,
         description: "If the given number is a multiple of 3, return <code>'Fizz'</code>. If it's a multiple of 5, return <code>'Buzz'</code>. If both, return <code>'FizzBuzz'</code>. If neither, return the number.",
         data_generator: function() {
             return Math.floor(Math.random()*10000);
@@ -190,5 +190,4 @@ var challenge_configs = {
 		]
 	},
 }
-
 
