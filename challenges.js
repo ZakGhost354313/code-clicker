@@ -1,6 +1,6 @@
 var challenge_configs = {
 	'echo': {
-		reward: 260,
+		reward: 1000,
 		price: 500,
 		description: "Return what you're given",
 		data_generator: function() {
